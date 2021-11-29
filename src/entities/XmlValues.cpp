@@ -17,7 +17,7 @@ bool XmlValues::isLastPrimitive() const { return instanceof<XmlPrimitive>(elemen
 bool XmlValues::isFirstTag()  const { return instanceof<XmlTag>(elements[size() - 1]); }
 
 void XmlValues::printTo(std::ostream& oss, int indentation) const{
-    int limit = size() - 1;
+    int limit = size();
     for (int i = 0; i < limit; ++i) {
         XmlElement* element = elements[i];
         element->printTo(oss, indentation);

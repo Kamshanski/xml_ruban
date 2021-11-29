@@ -26,7 +26,7 @@ void XmlTag::printTo(std::ostream& os, int indentation) const {
     os << " {";
     if (values->isNotEmpty()) {
         os << '\n';
-        values->printTo(os, indentation + 4);
+        values->printTo(os, indentation + 1);
         os << '\n'
            << indentations;
     }
@@ -82,7 +82,7 @@ void XmlTag::setAttributes(XmlAttributes* attributes) {
 }
 
 XmlTag* XmlTag::firstOrNullTag(const std::string& tagName) {
-    int limit = values->size() - 1;
+    int limit = values->size();
     for (int i = 0; i < limit; ++i) {
         XmlElement* element = values->get(i);
         if (element->isXmlTag()) {

@@ -12,7 +12,7 @@ int XmlAttributes::size() const {
 }
 
 void XmlAttributes::printTo(std::ostream& os, int indentation) const{
-    int limit = size() - 1;
+    int limit = size();
     for (int i = 0; i < limit; ++i) {
         attributes.forEachIndexed([&os, limit](int i, const std::string& name, const std::string& value) {
             os << name
