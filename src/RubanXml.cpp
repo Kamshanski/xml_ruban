@@ -1,6 +1,7 @@
 #include "include/xml_ruban/RubanXml.h"
 #include <iostream>
 #include <sink/FileSink.h>
+#include <decode/parser/TagBuilder.h>
 
 
 RubanXml::RubanXml(XmlWriterFactory* xmlWriterFactory, XmlParserFactory* xmlParserFactory)
@@ -38,22 +39,36 @@ Sink* RubanXml::xmlTagToSink(XmlTag* tag, Sink* sink) {
 
 
 
-XmlTag* RubanXml::xmlTreeFromString(std::string xml, Visitor* listener) {
+XmlTag* RubanXml::xmlTreeFromString(std::string xml) {
     auto source = StringSource(std::move(xml));
-    return xmlTreeFromSource(&source, listener);
+    return xmlTreeFromSource(&source);
 }
 
-XmlTag* RubanXml::xmlTreeFromFile(const std::string& path, Visitor* listener) {
+XmlTag* RubanXml::xmlTreeFromFile(const std::string& path) {
     auto source = FileSource(path);
-    return xmlTreeFromSource(&source, listener);
+    return xmlTreeFromSource(&source);
 }
 
-XmlTag* RubanXml::xmlTreeFromSource(Source* source, Visitor* listener) {
+XmlTag* RubanXml::xmlTreeFromSource(Source* source) {
     try {
-        Parser* parser = xmlParserFactory->get(source, listener);
-        XmlTag* tag = parser->parse();
+        TagBuilder builder = TagBuilder();
+
+        Parser* parser = xmlParserFactory->get(source, &builder);
+        parser->parse();
+
+        XmlTag* tag = builder.getRoot();
         delete parser;
         return tag;
+    } catch (std::exception& ex) {
+        source->close();
+        throw ex;
+    }
+}
+void RubanXml::parseFromSource(Source* source, Visitor* visitor) {
+    try {
+        Parser* parser = xmlParserFactory->get(source, visitor);
+        parser->parse();
+        delete parser;
     } catch (std::exception& ex) {
         source->close();
         throw ex;

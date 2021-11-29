@@ -13,14 +13,13 @@ class Parser {
 private:
     Source* source;
     DecoderParams* params;
-    Visitor* listener = nullptr;
+    Visitor* visitor = nullptr;
 
     ParserState state = ParserState::NONE;
     int i = 0;
     int from = 0;
     StringBuilder buf;
 
-    XmlTag* tag = nullptr;
     bool isOpened = false;
 
     std::string* tagName = nullptr;
@@ -29,14 +28,14 @@ private:
     bool _isUsed = false;
 ////////////////////////////////////////////////////////
     void setOpenTagReadStarted(char beginning);
-    Parser(Source* source, DecoderParams* params, Visitor* listener, int i);
+    Parser(Source* source, DecoderParams* params, Visitor* visitor, int i);
 public:
-    Parser(Source* source, DecoderParams* params, Visitor* listener);
+    Parser(Source* source, DecoderParams* params, Visitor* visitor);
 
     bool isUsed() const;
     void requireNotUsed() const;
 
-    XmlTag* parse();
+    Visitor* parse();
 private:
 
     int processSource();
