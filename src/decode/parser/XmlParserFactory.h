@@ -13,7 +13,7 @@ private:
 public:
     explicit XmlParserFactory(DecoderParams* decoderParams);
 
-    virtual Parser* get(Source* source, Visitor* listener);
+    virtual Parser* get(Source* source, Visitor* visitor);
     virtual ~XmlParserFactory();
 };
 

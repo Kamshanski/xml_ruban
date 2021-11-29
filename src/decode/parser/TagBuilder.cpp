@@ -2,11 +2,13 @@
 #include "TagBuilder.h"
 
 void TagBuilder::onTagOpen(std::string tagName) {
+    XmlTag* newTag = new XmlTag(tagName);
     if (root == nullptr) {
-        root =  new XmlTag(tagName);
+        root = newTag;
     }
-    branch.push_back(root);
+    branch.push_back(newTag);
 }
+
 void TagBuilder::onTagClosed(std::string tagName) {
     auto current = getCurrent();
     auto parent = getCurrentsParent();
@@ -35,7 +37,7 @@ void TagBuilder::onTagTextValue(std::string tagTextValue) {
 }
 
 XmlTag* TagBuilder::getCurrent() const {
-    if (branch.size() > 0) {
+    if (!branch.empty()) {
         return branch[branch.size() - 1];
     }
     return nullptr;

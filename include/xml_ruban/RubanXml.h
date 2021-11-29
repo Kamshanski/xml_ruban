@@ -23,9 +23,10 @@ public:
     std::string xmlTagToString(XmlTag* tag);
     void xmlTagToFile(XmlTag* tag, std::string path);
     Sink* xmlTagToSink(XmlTag* tag, Sink* sink);
-    XmlTag* xmlTreeFromSource(Source* tag, Visitor* listener = nullptr);
-    XmlTag* xmlTreeFromString(std::string xml, Visitor* listener = nullptr);
-    XmlTag* xmlTreeFromFile(const std::string& path, Visitor* listener = nullptr);
+    void parseFromSource(Source* tag, Visitor* visitor);
+    XmlTag* xmlTreeFromSource(Source* tag);
+    XmlTag* xmlTreeFromString(std::string xml);
+    XmlTag* xmlTreeFromFile(const std::string& path);
 
     virtual ~RubanXml();
 };

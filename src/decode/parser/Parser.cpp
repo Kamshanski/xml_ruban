@@ -18,14 +18,14 @@ void Parser::requireNotUsed() const {
     }
 }
 
-XmlTag* Parser::parse() {
+Visitor* Parser::parse() {
     requireNotUsed();
 
     _isUsed = true;
 
     processSource();
 
-    return requireTagNotNull(this->tag);
+    return visitor;
 }
 
 int Parser::processSource() {
@@ -77,7 +77,7 @@ ParserState Parser::quoteSign() {
         }
         case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: throw WhitespaceMisexpectationException(i, ch);
         case READ_TAG_VALUE: return valueChar(ch);
-        case OPEN_TAG_CLOSE_MARKER: throw IllegalCharAfterTagCloseMarkerException(i, ch);
+        case CLOSE_MARKER_AFTER_TAG_OPENED: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: throw IllegalCharAfterTagEndException(i, ch);
         case WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE: throw CloseBraceMisexpectationException(i, ch);
         default: throw UnknownSateException(i, state);
@@ -103,7 +103,7 @@ ParserState Parser::equalitySign() {
             return valueChar(ch);
         }
         case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: throw WhitespaceMisexpectationException(i, ch);
-        case OPEN_TAG_CLOSE_MARKER: throw IllegalCharAfterTagCloseMarkerException(i, ch);
+        case CLOSE_MARKER_AFTER_TAG_OPENED: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: throw IllegalCharAfterTagEndException(i, ch);
         case WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE: throw CloseBraceMisexpectationException(i, ch);
         default: throw UnknownSateException(i, state);
@@ -129,7 +129,7 @@ ParserState Parser::whitespace(char ch) {
         case READ_ATTR_VALUE:return valueChar(ch);
         case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: return INSIDE_TAG;
         case READ_TAG_VALUE: return valueChar(ch);
-        case OPEN_TAG_CLOSE_MARKER:
+        case CLOSE_MARKER_AFTER_TAG_OPENED:
         case START_READ_CLOSE_TAG_NAME: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: return SAME_STATE();
         case READ_CLOSE_TAG_NAME: return WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE;
@@ -150,16 +150,16 @@ ParserState Parser::endMarker() {
         }
         case READ_TAG_NAME: {
             createTag();
-            return OPEN_TAG_CLOSE_MARKER;
+            return CLOSE_MARKER_AFTER_TAG_OPENED;
         }
-        case INSIDE_TAG: return OPEN_TAG_CLOSE_MARKER;
+        case INSIDE_TAG: return CLOSE_MARKER_AFTER_TAG_OPENED;
         case READ_ATTR_NAME: throw IllegalCharInAttrNameException(i, ch);
         case WAIT_FOR_ATTR_EQ_SIGN: throw EqualSignMisexpectationException(i, ch);
         case WAIT_FOR_ATTR_OPEN_QUOTE: throw QuoteSignMisexpectationException(i, ch);
         case READ_ATTR_VALUE: return valueChar(ch);
-        case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: return OPEN_TAG_CLOSE_MARKER;
+        case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: return CLOSE_MARKER_AFTER_TAG_OPENED;
         case READ_TAG_VALUE: return valueChar(ch);
-        case OPEN_TAG_CLOSE_MARKER: throw IllegalCharAfterTagCloseMarkerException(i, ch);
+        case CLOSE_MARKER_AFTER_TAG_OPENED: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: throw IllegalCharAfterTagEndException(i, ch);
         case START_READ_CLOSE_TAG_NAME:
         case READ_CLOSE_TAG_NAME: throw IllegalCharInTagNameException(i, ch);
@@ -190,10 +190,14 @@ ParserState Parser::closeTagSign() {
             return READ_TAG_VALUE;
         }
         case READ_TAG_VALUE: throw IllegalCharInTagTextValueException(i, ch);
-        case OPEN_TAG_CLOSE_MARKER: {
-            if (listener != nullptr) {
+        case CLOSE_MARKER_AFTER_TAG_OPENED: {
+            if (visitor != nullptr) {
                 std::string openTagName = requireTagNameNotNullOrBlank(tagName);
-                listener->onTagClosed(openTagName);
+                try {
+                    visitor->onTagClosed(openTagName);
+                } catch (TagIsNullException& ex) {
+                    throw TagIsNullException(i, state);
+                }
             }
             return TAG_CLOSED;
         }
@@ -224,7 +228,7 @@ ParserState Parser::openTagSign() {
             readTextValue();
             return START_READ_TAG; // START_READ_TAG + isOpened=true дают чтение нового внутреннего тэга
         }
-        case OPEN_TAG_CLOSE_MARKER: throw IllegalCharAfterTagCloseMarkerException(i, ch);
+        case CLOSE_MARKER_AFTER_TAG_OPENED: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: throw IllegalCharAfterTagEndException(i, ch);
         case WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE: throw CloseBraceMisexpectationException(i, ch);
         default: throw UnknownSateException(i, state);
@@ -265,7 +269,7 @@ ParserState Parser::valueChar(char ch) {
             append(ch);
             return SAME_STATE();
         }
-        case OPEN_TAG_CLOSE_MARKER: throw IllegalCharAfterTagCloseMarkerException(i, ch);
+        case CLOSE_MARKER_AFTER_TAG_OPENED: throw IllegalCharAfterTagCloseMarkerException(i, ch);
         case TAG_CLOSED: throw IllegalCharAfterTagEndException(i, ch);
         case START_READ_CLOSE_TAG_NAME : {
             append(ch);
@@ -281,15 +285,10 @@ ParserState Parser::valueChar(char ch) {
 }
 
 void Parser::readTagValue(char ch) {
-    Parser innerParser = Parser(source, params, listener, i+1); // +1 as '<' is already consumed
+    Parser innerParser = Parser(source, params, visitor, i+1); // +1 as '<' is already consumed
     innerParser.setOpenTagReadStarted(ch);
 
     i = innerParser.processSource();
-
-    XmlTag* outerTag = requireTagNotNull(this->tag);
-    XmlTag* innerTag = requireTagNotNull(innerParser.tag, true);
-
-    outerTag->addValue(innerTag);
 }
 
 void Parser::readTextValue() {
@@ -300,12 +299,12 @@ void Parser::readTextValue() {
             std::string textValue = buf.extract();
             trimIfNeed(textValue);
 
-            XmlTag* tag = requireTagNotNull(this->tag);
-
-            tag->addValue(textValue);
-
-            if (listener != nullptr) {
-                listener->onTagTextValue(textValue);
+            if (visitor != nullptr) {
+                try {
+                    visitor->onTagTextValue(textValue);
+                } catch (TagIsNullException& ex) {
+                    throw TagIsNullException(i, state);
+                }
             }
         }
 
@@ -318,10 +317,13 @@ void Parser::readAttributeValue() {
     value = requireAttrValueNotNull(&value);
 
     std::string name = requireAttrNameNotNullOrBlank(attrName);
-    XmlTag* tag = requireTagNotNull(this->tag);
 
-    if (listener != nullptr) {
-        listener->onAttribute(name, value);
+    if (visitor != nullptr) {
+        try {
+            visitor->onAttribute(name, value);
+        } catch (TagIsNullException& ex) {
+            throw TagIsNullException(i, state);
+        }
     }
 //
 //    tag->addAttribute(name, value);
@@ -345,11 +347,13 @@ void Parser::createTag() {
 
     markTagIsOpened();
 
-    if (listener != nullptr) {
-        listener->onTagOpen(tagName);
+    if (visitor != nullptr) {
+        try {
+            visitor->onTagOpen(tagName);
+        } catch (TagIsNullException& ex) {
+            throw TagIsNullException(i, state);
+        }
     }
-
-    tag = new XmlTag(tagName);
 }
 
 void Parser::closeTag() {
@@ -361,8 +365,12 @@ void Parser::closeTag() {
         throw TagNamesAreDifferentException(i, state, openTagName, closeTagName);
     }
 
-    if (listener != nullptr) {
-        listener->onTagClosed(closeTagName);
+    if (visitor != nullptr) {
+        try {
+            visitor->onTagClosed(closeTagName);
+        } catch (TagIsNullException& ex) {
+            throw TagIsNullException(i, state);
+        }
     }
 }
 
@@ -389,16 +397,6 @@ ParserState Parser::SAME_STATE() {
     return state;
 }
 
-
-XmlTag* Parser::requireTagNotNull(XmlTag* tag, bool inner) {
-    if (tag == nullptr) {
-        if (inner)
-            throw TagIsNullException(i, state);
-        else
-            throw InnerTagIsNullException(i, state);
-    }
-    return tag;
-}
 
 std::string Parser::requireTagNameNotNullOrBlank(std::string* tagName) {
     if (tagName == nullptr) {
@@ -433,16 +431,16 @@ void Parser::checkTagIsOpened() {
     }
 }
 
-Parser::Parser(Source* source, DecoderParams* params, Visitor* listener, int from) :
-        source(source), params(params), listener(listener), from(from) {
+Parser::Parser(Source* source, DecoderParams* params, Visitor* visitor, int from) :
+        source(source), params(params), visitor(visitor), from(from) {
     if (from < 0) {
         std::stringstream ss;
         ss << "From cant be less than 0: " << from;
         throw std::out_of_range(ss.str());
     }
 }
-Parser::Parser(Source* source, DecoderParams* params, Visitor* listener) :
-        Parser(source, params, listener, 0) {
+Parser::Parser(Source* source, DecoderParams* params, Visitor* visitor) :
+        Parser(source, params, visitor, 0) {
 
 }
 Parser::~Parser() {

@@ -15,7 +15,7 @@ std::string to_string(ParserState v) {
         case WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG: return {"WAIT_FOR_ONE_WHITESPACE_THEN_INSIDE_TAG" };
         case READ_TAG_VALUE: return { "READ_TAG_VALUE" };
         case TAG_CLOSED: return { "TAG_CLOSED" };
-        case OPEN_TAG_CLOSE_MARKER: return { "OPEN_TAG_CLOSE_MARKER" };
+        case CLOSE_MARKER_AFTER_TAG_OPENED: return {"CLOSE_MARKER_AFTER_TAG_OPENED" };
         case START_READ_CLOSE_TAG_NAME: return { "START_READ_CLOSE_TAG_NAME" };
         case READ_CLOSE_TAG_NAME: return { "READ_CLOSE_TAG_NAME" };
         case WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE: return { "WAIT_FOR_ONE_CLOSE_BRACE_THEN_TAG_CLOSE" };

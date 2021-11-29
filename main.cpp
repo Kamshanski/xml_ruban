@@ -4,20 +4,20 @@
 #include <iostream>
 #include <include/xml_ruban/RubanXmlBuilder.h>
 
-class Visua : public Visitor {
-    void onAttribute(std::string attrName, std::string attrValue) override {
-        std::cout << "Found attribute: " << attrName << "=" << attrValue << std::endl;
-    }
-    void onTagOpen(std::string tagName) override {
-        std::cout << "Tag opened: " << tagName << std::endl;
-    }
-    void onTagClosed(std::string tagName) override {
-        std::cout << "Tag closed: " << tagName << std::endl;
-    }
-    void onTagTextValue(std::string tagTextValue) override {
-        std::cout << "Tag text value: " << tagTextValue << std::endl;
-    }
-};
+//class Visua : public Visitor {
+//    void onAttribute(std::string attrName, std::string attrValue) override {
+//        std::cout << "Found attribute: " << attrName << "=" << attrValue << std::endl;
+//    }
+//    void onTagOpen(std::string tagName) override {
+//        std::cout << "Tag opened: " << tagName << std::endl;
+//    }
+//    void onTagClosed(std::string tagName) override {
+//        std::cout << "Tag closed: " << tagName << std::endl;
+//    }
+//    void onTagTextValue(std::string tagTextValue) override {
+//        std::cout << "Tag text value: " << tagTextValue << std::endl;
+//    }
+//};
 
 void testString() {
     std::cout << "\n\nTest String\n\n";
@@ -43,13 +43,11 @@ void testString() {
             ->setTrim(true);
     RubanXml rx = builder->create();
 
-    auto visitor = new Visua();
-    auto tag = rx.xmlTreeFromString(xml, visitor);
+    auto tag = rx.xmlTreeFromString(xml);
     std::cout << rx.xmlTagToString(tag) << std::endl;
 
     delete builder;
     delete tag;
-    delete visitor;
 }
 
 void testFile(std::string sourcePath, std::string sinkPath) {
@@ -62,14 +60,12 @@ void testFile(std::string sourcePath, std::string sinkPath) {
             ->setTrim(true);
     RubanXml rx = builder->create();
 
-    auto visitor = new Visua();
-    auto tag = rx.xmlTreeFromFile(sourcePath, visitor);
+    auto tag = rx.xmlTreeFromFile(sourcePath);
 
     rx.xmlTagToFile(tag, std::move(sinkPath));
 
     delete builder;
     delete tag;
-    delete visitor;
 }
 
 void testCustomTree() {
@@ -107,8 +103,6 @@ void testCustomTree() {
 
     rootTag->getValues();
 
-
-    auto visitor = new Visua();
     std::cout << rx.xmlTagToString(rootTag) << std::endl;
 
     XmlTag* intTag = rootTag->firstOrNullTag("Integer");
@@ -128,7 +122,6 @@ void testCustomTree() {
 
     delete builder;
     delete rootTag;
-    delete visitor;
 }
 
 int main() {
